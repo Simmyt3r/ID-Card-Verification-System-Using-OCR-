@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "id-card-verification-system"
+version = "1.0.0"
+description = "Desktop OCR-based student ID card verification system."
+requires-python = ">=3.10"
+dependencies = [
+    "opencv-python>=4.9",
+    "pytesseract>=0.3.10",
+    "pyttsx3>=2.90",
+]
+
+[project.scripts]
+id-card-verifier = "id_card_verifier.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
