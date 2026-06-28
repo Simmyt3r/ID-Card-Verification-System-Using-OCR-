@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import re
+import time
 from pathlib import Path
 
 MATRIC_PATTERN = re.compile(r"[A-Z]{2,4}/\d{2}[A-Z]/\d{3,5}", re.IGNORECASE)
@@ -50,8 +51,19 @@ def read_text_from_image(image_path: Path | str) -> str:
     return pytesseract.image_to_string(thresholded)
 
 
-def capture_image_from_webcam(output_path: Path | str) -> Path:
-    """Capture a single frame from the default webcam and save it to disk."""
+def capture_image_from_webcam(
+    output_path: Path | str,
+    *,
+    warmup_seconds: float = 2.0,
+    minimum_warmup_frames: int = 10,
+) -> Path:
+    """Capture a stable frame from the default webcam and save it to disk.
+
+    Webcams commonly return a dark or blurry first frame while autofocus,
+    auto-exposure, and white balance settle.  Waiting briefly and discarding
+    warm-up frames makes the capture feel intentional instead of snapping the
+    instant the button is pressed.
+    """
 
     if not is_module_available("cv2"):
         raise RuntimeError("Webcam capture requires opencv-python. Install it with pip.")
@@ -66,9 +78,20 @@ def capture_image_from_webcam(output_path: Path | str) -> Path:
         raise RuntimeError("Could not open the default webcam.")
 
     try:
-        ok, frame = camera.read()
-        if not ok:
+        deadline = time.monotonic() + warmup_seconds
+        frame = None
+        frames_read = 0
+
+        while frames_read < minimum_warmup_frames or time.monotonic() < deadline:
+            ok, candidate = camera.read()
+            if not ok:
+                raise RuntimeError("Could not read an image from the webcam.")
+            frame = candidate
+            frames_read += 1
+
+        if frame is None:
             raise RuntimeError("Could not read an image from the webcam.")
+
         cv2.imwrite(str(output), frame)
     finally:
         camera.release()

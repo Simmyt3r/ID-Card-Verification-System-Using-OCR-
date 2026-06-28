@@ -126,14 +126,16 @@ class IDCardVerifierApp(tk.Tk):
         self._ocr_image(Path(file_path))
 
     def capture_webcam(self) -> None:
+        self.status_var.set("Preparing camera. Hold the ID card steady...")
+        self.update_idletasks()
         try:
             image_path = capture_image_from_webcam(CAPTURE_PATH)
         except Exception as exc:
             messagebox.showerror("Webcam error", str(exc))
             return
-        self._ocr_image(image_path)
+        self._ocr_image(image_path, verify_after_ocr=True)
 
-    def _ocr_image(self, image_path: Path) -> None:
+    def _ocr_image(self, image_path: Path, *, verify_after_ocr: bool = False) -> None:
         try:
             text = read_text_from_image(image_path)
         except Exception as exc:
@@ -141,7 +143,13 @@ class IDCardVerifierApp(tk.Tk):
             return
         self.card_text.delete("1.0", END)
         self.card_text.insert("1.0", text)
-        self.status_var.set(f"OCR completed for {image_path.name}. Click Verify Card Text.")
+
+        if verify_after_ocr:
+            self.status_var.set(f"OCR completed for {image_path.name}. Verifying card text...")
+            self.update_idletasks()
+            self.verify_card_text()
+        else:
+            self.status_var.set(f"OCR completed for {image_path.name}. Click Verify Card Text.")
 
     def verify_card_text(self) -> None:
         result = self.service.verify_card_text(self.card_text.get("1.0", END))
